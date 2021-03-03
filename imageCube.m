@@ -11,29 +11,40 @@ classdef imageCube< handle
         sizes
         im_ave
         spec_ave
+        adf
+        elements
     end
     
     methods
         function obj = imageCube(varargin)
             %IMAGECUBE Construct an instance of this class
             %   Detailed explanation goes here
-            obj.data  = im3D;
-            obj.sizes = size(obj.data);
             
             if nargin == 1
-                im3D = argin{1};
+                im3D = varargin{1};
                 dx = [1 1 1];
                 offset = [0,0,0];
                 unit = {'px','px','px'};
+                adf = mean( im3D, 3);
             elseif nargin == 4
-                im3D = argin{1};
-                dx = argin{2};
-                offset = argin{3};
-                unit = argin{4};
+                im3D = varargin{1};
+                dx = varargin{2};
+                offset = varargin{3};
+                unit = varargin{4};
+                adf = mean( im3D, 3);
+            elseif nargin == 5
+                im3D = varargin{1};
+                dx = varargin{2};
+                offset = varargin{3};
+                unit = varargin{4};
+                adf = varargin{5};
             else
                 error('Invalid Input Error')
                 
             end
+            obj.data  = im3D;
+            obj.adf   = adf;
+            obj.sizes = size(obj.data);
             
             for ind = 1:3
                 obj.cali(ind).dx     = dx(ind);
@@ -45,6 +56,12 @@ classdef imageCube< handle
             
             
         end
+        
+        function setElements(self,symbols)
+            self.elements = parseElements( symbols );
+        end
+        
+        function
         
         function resize(self,scales)
             
@@ -59,6 +76,7 @@ classdef imageCube< handle
             end
             
             self.data = imresize3(self.data,ns);
+            self.adf  = imresize(self.adf, ns(1:2));
             self.sizes = size(self.data);
         end
         
@@ -75,7 +93,7 @@ classdef imageCube< handle
             
             figure;
             subplot(2,2,1)
-            imh(1) = imagesc(obj.cali(2).axes,obj.cali(1).axes,obj.im_ave);
+            imh(1) = imagesc(obj.cali(2).axes,obj.cali(1).axes,obj.adf);
             xlabel(obj.cali(2).unit)
             ylabel(obj.cali(1).unit)
             axis equal image
@@ -111,8 +129,10 @@ classdef imageCube< handle
             imh(2).CData = mean( obj.data(:,:,einds(1):einds(2)),3);
 
 
-        end           
+        end    
+        
         function updateSpectrum(obj,r, imh)
+            disp(evnt)
             x_bounds = [r(1).Position(1), r(1).Position(1)+r(1).Position(3)];
             y_bounds = [r(1).Position(2), r(1).Position(2)+r(1).Position(4)];
 
@@ -127,6 +147,21 @@ classdef imageCube< handle
             imh(3).YData = mean( obj.data(yinds(1):yinds(2),xinds(1):xinds(2),:),[1,2]);
 
         end
+        
+        function ydata = lorentz(x,xdata)
+    
+            numLorents = size(x,1);
+            ydata = zeros([1, length(xdata)]);
+
+            for ind = 1:numLorents
+                ydata = ydata+...
+                    x(ind,1) ./ (x(ind,2)*(1 + ((xdata-x(ind,3))/x(ind,2)).^2) );
+            end
+
+        end
+
+
+        
         
         function show2D(obj)
             obj.im_ave = mean(obj.data,3);
