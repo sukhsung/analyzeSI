@@ -3,6 +3,8 @@ classdef imageCube< handle
     %   Detailed explanation goes here
     
     properties
+        elements
+        E0
     end
     
     properties (SetAccess = private)
@@ -12,7 +14,6 @@ classdef imageCube< handle
         im_ave
         spec_ave
         adf
-        elements
     end
     
     methods
@@ -42,49 +43,108 @@ classdef imageCube< handle
                 error('Invalid Input Error')
                 
             end
-            obj.data  = im3D;
+            obj.data  = double(im3D);
             obj.adf   = adf;
             obj.sizes = size(obj.data);
             
             for ind = 1:3
                 obj.cali(ind).dx     = dx(ind);
                 obj.cali(ind).offset = offset(ind);
-                obj.cali(ind).axes   = (0:(obj.sizes(ind)-1))*dx(ind) + offset(ind);
+                obj.cali(ind).axes   = ((0:(obj.sizes(ind)-1))*dx(ind) + offset(ind))';
                 obj.cali(ind).unit   = unit{ind};
             end
+            
+            obj.spec_ave = squeeze( mean( obj.data, [1,2] ) );
+            obj.im_ave   = mean( obj.data, 3) ;
+            
+        end
+        
+        function setElements(obj,symbols)
+            obj.elements = parseElements( symbols );
+        end
+        
+        function [edge_labels,x0] = guessSpectrum(obj)
+            gm = 0.015;
+            
+            edge = 0;
+            eind = round((edge - obj.cali(3).offset)/obj.cali(3).dx + 1);
+            if eind >=1 && eind<=obj.sizes(3)
+                edge_labels = {'Zero-Loss'};
+                A = obj.spec_ave(eind);
+                x0 = [A, gm ,edge];
+            else
+                edge_labels = {};
+                x0 = [];
+            end
+            
+            numElements = length(obj.elements);
+            
+            
+            for indElement = 1:numElements
+                e = obj.elements(indElement);
+                numSelected = length(e.selected);
+                for indEdge = 1:numSelected
+                    if isfield(e.EDS,e.selected{indEdge})
+                        curEdge = e.EDS.(e.selected{indEdge});
+                        if ~isnan(curEdge)
+                            edge = curEdge/1000;
+                            eind = round((edge - obj.cali(3).offset)/obj.cali(3).dx + 1);
+                            if eind >=1 && eind<=obj.sizes(3)
+                                A = obj.spec_ave(eind);
+                                x0 = [x0;A, gm ,edge];
+                                edge_labels = [edge_labels;[e.Symbol,'-',e.selected{indEdge}]];
+                            end
+                        else
+                            error( [e.Symbol,'-',e.selected{indEdge}, 'is NaN'])
+                        end
+                    else
+                        error( [e.selected{indEdge}, 'does not exist'])
+                    end
+                end
+            end
+            
+            
+            
+            lb = x0; ub = x0;
+            
+            lb(:,1) = 0; ub(:,1) = inf;
+            lb(:,2) = 0; ub(:,2) = 5*ub(:,2);
+            lb(:,3) = lb(:,3) - 0.05; ub(:,3) = ub(:,3) +0.05;
+            
+            x0 = [x0; x0(1,1), -0.5, 0.5];
+            lb = [lb; 0, -1      , 0];
+            ub = [ub; inf, 0, 1];
+            
+            x0 = lsqcurvefit( @(x0,xdata) obj.lorentz(x0, xdata), x0, obj.cali(3).axes, obj.spec_ave, lb, ub );
+                    
+            
+            
+        end
 
-            
-            
-        end
         
-        function setElements(self,symbols)
-            self.elements = parseElements( symbols );
-        end
-        
-        function
-        
-        function resize(self,scales)
+        function resize(obj,scales)
             
             for ind = 1:3
 
-                ns(ind) = floor(self.sizes(ind)*scales(ind));
-                self.cali(ind).dx = self.cali(ind).dx/scales(ind);
+                ns(ind) = floor(obj.sizes(ind)*scales(ind));
+                obj.cali(ind).dx = obj.cali(ind).dx/scales(ind);
 
-                self.cali(ind).axes = imresize( self.cali(ind).axes, [1, ns(ind)] );
+                obj.cali(ind).axes = imresize( obj.cali(ind).axes, [ns(ind),1] );
 
-                self.cali(ind).offset =  self.cali(ind).axes(1);
+                obj.cali(ind).offset =  obj.cali(ind).axes(1);
             end
             
-            self.data = imresize3(self.data,ns);
-            self.adf  = imresize(self.adf, ns(1:2));
-            self.sizes = size(self.data);
+            obj.data = imresize3(obj.data,ns);
+            obj.adf  = imresize(obj.adf, ns(1:2));
+            obj.sizes = size(obj.data);
+            
+            obj.spec_ave = squeeze( mean( obj.data, [1,2] ) );
+            obj.im_ave   = mean( obj.data, 3) ;
         end
         
 
         
         function show3D(obj)
-            obj.im_ave = mean(obj.data,3);
-            obj.spec_ave = mean(obj.data, [1,2]);
             
             xbounds = [min(obj.cali(2).axes), max(obj.cali(2).axes)];
             ybounds = [min(obj.cali(1).axes), max(obj.cali(1).axes)];
@@ -132,7 +192,6 @@ classdef imageCube< handle
         end    
         
         function updateSpectrum(obj,r, imh)
-            disp(evnt)
             x_bounds = [r(1).Position(1), r(1).Position(1)+r(1).Position(3)];
             y_bounds = [r(1).Position(2), r(1).Position(2)+r(1).Position(4)];
 
@@ -148,18 +207,37 @@ classdef imageCube< handle
 
         end
         
-        function ydata = lorentz(x,xdata)
+        function ydata = lorentz(obj,x,xdata)
     
-            numLorents = size(x,1);
-            ydata = zeros([1, length(xdata)]);
+            numLorents = size(x,1)-1;
+            ydata = zeros(size(xdata));
 
             for ind = 1:numLorents
                 ydata = ydata+...
-                    x(ind,1) ./ (x(ind,2)*(1 + ((xdata-x(ind,3))/x(ind,2)).^2) );
+                    (x(ind,1)*(x(ind,2)^2))./(((x(ind,2)^2) + (xdata-x(ind,3)).^2 ));
             end
+            
+            
+            
+            
+            ydata = ydata+ obj.bremss(x(end,:),xdata);
 
         end
 
+        function ydata = bremss(obj,x,xdata)
+         %   xdata( xdata<0 ) =0;
+            
+            kramer = (obj.E0-xdata).*(xdata.^-1);
+            de     = (1-exp(-xdata));
+            ydata = x(1)*kramer.*de;
+            figure
+            hold on
+            plot(xdata,kramer*0.01)
+            plot(xdata,de)
+            plot(xdata,de.*kramer*0.01)
+            ylim([0,5])
+            %ydata( isnan(ydata) ) = 0;
+        end
 
         
         

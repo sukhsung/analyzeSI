@@ -24,14 +24,13 @@ function elements = parseElements( inputVal )
                 inputVal = split(inputVal,{' ',','}) ;
             end
             Zs = t.Z;
-            names = t.Element;
+            names = t.Symbol;
             [Lia,Locb] = ismember( inputVal, names );
-            Zs = sort(Zs(Locb));
             % Check if all elements are valid
             if ~all(Lia)
                 error( 'Error Parsing Input: Invalid Element Name')
             else
-                elements = elements( Zs );
+                elements = elements( Zs(Locb) );
             end           
         else
             error( 'Wrong Input Type' );
