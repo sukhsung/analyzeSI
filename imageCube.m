@@ -43,6 +43,9 @@ classdef imageCube< handle
                 error('Invalid Input Error')
                 
             end
+            
+            addpath('./elements')
+            
             obj.data  = double(im3D);
             obj.adf   = adf;
             obj.sizes = size(obj.data);
