@@ -62,7 +62,7 @@ classdef imageCube< handle
         end
         
         function setElements(obj,symbols)
-            obj.elements = parseElements( symbols );
+            obj.elements = parseElements( symbols, './elements/elements.csv' );
         end
         
         function [edge_labels,x0] = guessSpectrum(obj)
