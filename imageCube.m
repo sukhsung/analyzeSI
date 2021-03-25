@@ -107,18 +107,18 @@ classdef imageCube< handle
             
             
             
-            lb = x0; ub = x0;
-            
-            lb(:,1) = 0; ub(:,1) = inf;
-            lb(:,2) = 0; ub(:,2) = 5*ub(:,2);
-            lb(:,3) = lb(:,3) - 0.05; ub(:,3) = ub(:,3) +0.05;
-            
-            x0 = [x0; x0(1,1), -0.5, 0.5];
-            lb = [lb; 0, -1      , 0];
-            ub = [ub; inf, 0, 1];
-            
-            x0 = lsqcurvefit( @(x0,xdata) obj.lorentz(x0, xdata), x0, obj.cali(3).axes, obj.spec_ave, lb, ub );
-                    
+%             lb = x0; ub = x0;
+%             
+%             lb(:,1) = 0; ub(:,1) = inf;
+%             lb(:,2) = 0; ub(:,2) = 5*ub(:,2);
+%             lb(:,3) = lb(:,3) - 0.05; ub(:,3) = ub(:,3) +0.05;
+%             
+%             x0 = [x0; x0(1,1), -0.5, 0.5];
+%             lb = [lb; 0, -1      , 0];
+%             ub = [ub; inf, 0, 1];
+%             
+%             x0 = lsqcurvefit( @(x0,xdata) obj.lorentz(x0, xdata), x0, obj.cali(3).axes, obj.spec_ave, lb, ub );
+%                     
             
             
         end

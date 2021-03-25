@@ -38,12 +38,5 @@ toc
 figure
 hold on
 plot(e_ax, ic.spec_ave);
-plot(e_ax, ic.lorentz(x_guess,e_ax));
-plot(e_ax, ic.bremss(x_guess(end,:),e_ax));
 
 %%
-
-x= [ 1, -1.9, 1/30];
-xdata = e_ax;
-figure
-plot(e_ax,ic.bremss(x,xdata))
