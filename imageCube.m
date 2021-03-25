@@ -44,7 +44,6 @@ classdef imageCube< handle
                 
             end
             
-            addpath('./elements')
             
             obj.data  = double(im3D);
             obj.adf   = adf;
